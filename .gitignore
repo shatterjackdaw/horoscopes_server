@@ -1,0 +1,12 @@
+*.DS_Store
+.idea
+
+*.pyc
+*.log*
+conf/conf.yaml
+**/migrations/*
+!**/migrations/__init__.py
+*upload
+static/*
+!static/.keep
+**/tests/*
