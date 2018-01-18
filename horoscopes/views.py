@@ -1,7 +1,7 @@
 # coding:utf-8
 from django.shortcuts import render
 from django.http import JsonResponse
-from models import HoroscopeDayLog, HoroscopeType
+from models import HoroscopeDayLog, HoroscopeType, HoroscopeWeekLog, HoroscopeMonthLog, HoroscopeYearLog
 
 
 def index(request):
@@ -16,6 +16,9 @@ def index(request):
         str(horoscope_type): {
             'today': HoroscopeDayLog.get_day_horoscope_log(local_id, horoscope_type, 0),
             'tomorrow': HoroscopeDayLog.get_day_horoscope_log(local_id, horoscope_type, 1),
+            'weekly': HoroscopeWeekLog.get_week_horoscope_log(local_id, horoscope_type, 0),
+            'monthly': HoroscopeMonthLog.get_month_horoscope_log(local_id, horoscope_type, 0),
+            'yearly': HoroscopeYearLog.get_year_horoscope_log(local_id, horoscope_type, 0),
         },
         'base_data': horoscope_static
     }

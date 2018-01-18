@@ -108,6 +108,7 @@ horoscope_day_log_schema = Schema({
     TableDb.MONEY: {'type': dict, 'default': {}},
     TableDb.CAREER: {'type': dict, 'default': {}},
     TableDb.ADVANCE: {'type': dict, 'default': {}},
+    TableDb.HEALTH: {'type': dict, 'default': {}},
     'rating': {
         'type': Schema({
             Rating.OVERALL: {'type': int},
@@ -176,6 +177,7 @@ def auto_get_horoscopes_data():
     create_astrologyprime_horoscopes_data()
     create_horoscopes_other_all_data()
     create_findyourfate_horoscopes_data()
+    create_theastrologer_horoscopes_data()
     print datetime.datetime.now()
 
 
@@ -184,24 +186,27 @@ def create_theastrologer_horoscopes_data():
     print '>>>>>>>create_theastrologer_horoscopes_data'
     # https://www.theastrologer.com/horoscope
     host = 'https://new.theastrologer.com'
-    time_keys = {'daily': '/daily-horoscope/', 'weekly': '/weekly-horoscope/', 'monthly': '/monthly-horoscope/',
-                 'yearly': '/2018-horoscope/'}
-    horoscopes_data = {'daily': [], 'weekly': [], 'monthly': []}
+    time_keys = {'daily': '/daily-horoscope/', 'weekly': '/weekly-horoscope/', 'monthly': '/monthly-horoscope/'}
+    horoscopes_data = {'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
 
     for key, t_type in time_keys.iteritems():
-        data = get_theastrologer_horoscopes_data(host + t_type)
+        print key
+        if key == 'monthly':
+            data = get_theastrologer_monthly_horoscopes_data(host + t_type)
+        else:
+            data = get_theastrologer_horoscopes_data(host + t_type)
         if not data:
             continue
-        horoscopes_data[key].append(data)
-    y_data = get_theastrologer_horoscopes_data(host + '/2018-horoscope/')
-    horoscopes_data['yearly'].append(y_data)
+        horoscopes_data[key] = data
+    # y_data = get_theastrologer_yearly_horoscopes_data(host + '/2018-horoscope/')
+    # horoscopes_data['yearly'] = y_data
     save_horoscopes_data(horoscopes_data['daily'], TableDb.GENERAL)
     weekly_data = save_horoscopes_data(horoscopes_data['weekly'], TableDb.WEEKLY)
     save_horoscopes_noday_log(weekly_data, TableDb.WEEKLY)
     monthly_data = save_horoscopes_data(horoscopes_data['monthly'], TableDb.MONTHLY)
     save_horoscopes_noday_log(monthly_data, TableDb.MONTHLY)
-    yearly_data = save_yearly_horoscopes_data(horoscopes_data['yearly'], TableDb.YEARLY)
-    save_horoscopes_noday_log(yearly_data, TableDb.YEARLY)
+    # yearly_data = save_yearly_horoscopes_data(horoscopes_data['yearly'], TableDb.YEARLY)
+    # save_horoscopes_noday_log(yearly_data, TableDb.YEARLY)
 
 
 def get_theastrologer_horoscopes_data(href):
@@ -217,6 +222,30 @@ def get_theastrologer_horoscopes_data(href):
         for cont in s.parent.contents:
             if cont.string is not None:
                 new_text += cont.string
+        horoscopes_data.append({'key': horoscope_t.lower(), 'content': new_text.strip()})
+    print 'horoscopes_data>>' + str(horoscopes_data)
+    return horoscopes_data
+
+
+def get_theastrologer_monthly_horoscopes_data(href):
+    # 年型 解析爬下来的数据
+    response = get_url_response(href)
+    if not response:
+        return ''
+    horoscopes_data = []
+    soup = BeautifulSoup(response, "html.parser")
+    for s in soup.find_all(is_h2_no_id):
+        new_text = ''
+        horoscope_t = ''
+        for cont in s.parent.contents:
+            if type(cont) == Tag:
+                if cont.name == 'h2':
+                    horoscope_t = cont['id']
+                elif cont.name == 'p':
+                    if new_text:
+                        new_text += '\n'
+                    for p_cont in cont.contents:
+                        new_text += p_cont.string
         horoscopes_data.append({'key': horoscope_t.lower(), 'content': new_text.strip()})
     print 'horoscopes_data>>' + str(horoscopes_data)
     return horoscopes_data
@@ -243,14 +272,18 @@ def get_theastrologer_yearly_horoscopes_data(href):
                         horoscopes_data.append({'key': horoscope_t.lower(), 'content': new_text.strip(),
                                                 'class_type': class_t.lower()})
                     new_text = ''
-                    class_t = cont.name.string.strip()
+                    class_t = cont.string.strip()
                     class_t = class_t if class_t != 'Overview' else 'general'
                 elif cont.name == 'p':
                     if new_text:
                         new_text += '\n'
                     for p_cont in cont.contents:
                         new_text += p_cont.string
-        horoscopes_data.append({'key': horoscope_t.lower(), 'content': new_text.strip()})
+                print 'new_text>>>>'
+                print new_text
+        if class_t and new_text:
+            horoscopes_data.append({'key': horoscope_t.lower(), 'content': new_text.strip(),
+                                    'class_type': class_t.lower()})
     print 'horoscopes_data>>' + str(horoscopes_data)
     return horoscopes_data
 
@@ -347,7 +380,8 @@ def create_horoscopes_data():
         TableDb.LOVE: "/daily-horoscopes/c1-daily-love-horoscopes.asp",
         TableDb.MONEY: "/daily-horoscopes/d1-daily-money-horoscopes.asp",
         TableDb.CAREER: "/daily-horoscopes/e1-daily-career-horoscopes.asp",
-        TableDb.ADVANCE: "/daily-horoscopes/F1-daily-horoscope.asp"
+        TableDb.ADVANCE: "/daily-horoscopes/F1-daily-horoscope.asp",
+        TableDb.HEALTH: "/daily-horoscopes/UHF-english-health-and-fitness-horoscopes.asp"
     }
     new_ids_data = {}
     for key, href in href_list.iteritems():
@@ -517,21 +551,6 @@ def save_after_tomorrow_horoscopes_day_log(horoscopes_data):
         db_table.update_many({'_id': {'$in': ids_total_dict[t_class]}}, {'$set': {'last_time': last_time}})
 
 
-def save_horoscopes_week_log(horoscopes_data):
-    # 存下周log
-    now_date = datetime.datetime.now()
-    date_time = now_date.strftime('%Y-%U')
-    # b_date = (now_date + datetime.timedelta(days=-1)).strftime('%Y-%U')
-    print 'save today noday date_time>>' + str(date_time)
-    for h_type in HoroscopeType.ALL:
-        new_week_log = HoroscopeWeekLog.find_one({'date': date_time, 'horoscope_type': h_type})
-        if new_week_log:
-            continue
-        new_week_log = HoroscopeWeekLog({'date': date_time, 'horoscope_type': h_type,
-                                         'content': horoscopes_data[TableDb.WEEKLY][h_type]})
-        new_week_log.save()
-
-
 def save_horoscopes_noday_log(horoscopes_data, time_k):
     # 存下周log
     time_data = {TableDb.WEEKLY: ['%Y-%U', HoroscopeWeekLog], TableDb.MONTHLY: ['%Y-%m', HoroscopeMonthLog],
@@ -546,7 +565,7 @@ def save_horoscopes_noday_log(horoscopes_data, time_k):
         if new_month_log:
             continue
         new_month_log = time_conf[1]({'date': date_time, 'horoscope_type': h_type,
-                                      'content': horoscopes_data[time_k][h_type]})
+                                      'content': horoscopes_data[h_type]})
         new_month_log.save()
 
 

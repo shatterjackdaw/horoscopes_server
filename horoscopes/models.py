@@ -76,6 +76,7 @@ horoscope_day_log_schema = Schema({
     TableDb.MONEY: {'type': dict, 'default': {}},
     TableDb.CAREER: {'type': dict, 'default': {}},
     TableDb.ADVANCE: {'type': dict, 'default': {}},
+    TableDb.HEALTH: {'type': dict, 'default': {}},
     'rating': {
         'type': Schema({
             Rating.OVERALL: {'type': int},
@@ -105,7 +106,7 @@ horoscope_day_log_schema = Schema({
 })
 
 HoroscopeDayLog = create_model(horoscope_day_log_schema, db_horoscopes.horoscope_day_log, "HoroscopeDayLog")
-HoroscopeDayLog.collection.ensure_index("date")
+HoroscopeDayLog.collection.ensure_index([("date", -1), ('horoscope_type', -1)])
 
 
 horoscope_week_log_schema = Schema({
@@ -138,12 +139,45 @@ HoroscopeYearLog = create_model(horoscope_year_log_schema, db_horoscopes.horosco
 HoroscopeYearLog.collection.ensure_index([("date", -1), ('horoscope_type', -1)])
 
 
+@HoroscopeWeekLog.static_method
+def get_week_horoscope_log(local_id, horoscope_type, day_offset=0):
+    the_day = get_today_datetime(local_id, day_offset)
+    week_log = HoroscopeWeekLog.find_one({'date': the_day.strftime('%Y-%U'), 'horoscope_type': horoscope_type})
+    if not week_log:
+        return {}
+    data = dict(week_log)
+    del data['_id']
+    data['content'] = data['content'].values()[0].encode('utf-8')
+    return data
+
+
+@HoroscopeMonthLog.static_method
+def get_month_horoscope_log(local_id, horoscope_type, day_offset=0):
+    the_day = get_today_datetime(local_id, day_offset)
+    month_log = HoroscopeMonthLog.find_one({'date': the_day.strftime('%Y-%m'), 'horoscope_type': horoscope_type})
+    if not month_log:
+        return {}
+    data = dict(month_log)
+    del data['_id']
+    data['content'] = data['content'].values()[0].encode('utf-8')
+    return data
+
+
+@HoroscopeYearLog.static_method
+def get_year_horoscope_log(local_id, horoscope_type, day_offset=0):
+    the_day = get_today_datetime(local_id, day_offset)
+    year_log = HoroscopeYearLog.find_one({'date': the_day.strftime('%Y'), 'horoscope_type': horoscope_type})
+    if not year_log:
+        return {}
+    data = dict(year_log)
+    del data['_id']
+    data['content'] = data['content'].values()[0].encode('utf-8')
+    return data
+
+
 @HoroscopeDayLog.static_method
 def get_day_horoscope_log(local_id, horoscope_type, day_offset=0):
-    if local_id > 8:
-        local_id = 8
-    now = datetime.datetime.now() + datetime.timedelta(hours=local_id-8) + datetime.timedelta(days=day_offset)
-    the_day = datetime.datetime(now.year, now.month, now.day)
+    the_day = get_today_datetime(local_id, day_offset)
     day_log = HoroscopeDayLog.find_one({'date': the_day, 'horoscope_type': horoscope_type})
     if not day_log:
         # day_log = HoroscopeDayLog.create_new_horoscope_day_log()
@@ -202,6 +236,8 @@ def to_client_obj(self):
     data[TableDb.MONEY] = data[TableDb.MONEY].values()[0].encode('utf-8')
     data[TableDb.CAREER] = data[TableDb.CAREER].values()[0].encode('utf-8')
     data[TableDb.ADVANCE] = data[TableDb.ADVANCE].values()[0].encode('utf-8')
+    if data.get(TableDb.HEALTH):
+        data[TableDb.HEALTH] = data[TableDb.HEALTH].values()[0].encode('utf-8')
 
     data['date'] = data['date'].strftime('%Y%m%d')
     data['color'] = settings.STATIC['color'][data['color']]
@@ -215,3 +251,11 @@ def get_static_horoscope_data(horoscope_type):
     static = settings.STATIC['zodiac']
     data = static.get(horoscope_type, {})
     return data
+
+
+def get_today_datetime(local_id, day_offset):
+    if local_id > 8:
+        local_id = 8
+    now = datetime.datetime.now() + datetime.timedelta(hours=local_id-8) + datetime.timedelta(days=day_offset)
+    the_day = datetime.datetime(now.year, now.month, now.day)
+    return the_day
