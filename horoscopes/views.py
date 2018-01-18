@@ -1,7 +1,9 @@
 # coding:utf-8
+import time
+import json
 from django.shortcuts import render
 from django.http import JsonResponse
-from models import HoroscopeDayLog, HoroscopeType, HoroscopeWeekLog, HoroscopeMonthLog, HoroscopeYearLog
+from models import HoroscopeDayLog, HoroscopeType, HoroscopeWeekLog, HoroscopeMonthLog, HoroscopeYearLog, User
 
 
 def index(request):
@@ -24,3 +26,77 @@ def index(request):
     }
 
     return JsonResponse(ret)
+
+
+def info_regist(request):
+    facebook_id = request.POST.get('facebook_id')
+    device_id = request.POST.get('device_id')
+    info = json.loads(request.POST.get('info', {}))
+    if not facebook_id and not device_id:
+        return JsonResponse({'status': 1, 'desc': 'facebook_id or device_id empty!'})
+    birth = info.get('birth')
+    avatar_url = info.get('avatar_url')
+    is_auto = info.get('is_auto')
+    data = {
+        'birth': birth,
+        'avatar_url': avatar_url,
+        'is_auto': is_auto,
+    }
+    if facebook_id:
+        data['facebook_id'] = str(facebook_id)
+    if device_id:
+        data['device_id'] = str(device_id)
+
+    try:
+        if facebook_id:
+            user = User.find_one({'facebook_id': str(facebook_id)})
+        else:
+            user = User.find_one({'device_id': str(device_id), 'facebook_id': {'$exists': False}})
+
+        if is_auto is True:
+            data['auto_order'] = {'open': [int(time.time())], 'close': []}
+        if user:
+            user.update_instance({'$set': data})
+        else:
+            user = User(data)
+            user.save()
+
+        return JsonResponse({'status': 0})
+    except:
+        return JsonResponse({'status': 1, 'desc': 'save info error!'})
+
+
+def info_login(request):
+    facebook_id = request.POST.get('facebook_id')
+    device_id = request.POST.get('device_id')
+    user = None
+    if facebook_id:
+        user = User.find_one({'facebook_id': str(facebook_id)})
+    elif device_id:
+        user = User.find_one({'device_id': str(device_id), 'facebook_id': {'$exists': False}})
+    if not user:
+        return JsonResponse({'status': 1, 'desc': 'facebook_id or device_id error!'})
+
+    data = user.to_client_obj()
+    return JsonResponse({'status': 0, 'info': data})
+
+
+def auto_order(request):
+    facebook_id = request.POST.get('facebook_id')
+    device_id = request.POST.get('device_id')
+    user = None
+    if facebook_id:
+        user = User.find_one({'facebook_id': str(facebook_id)})
+    elif device_id:
+        user = User.find_one({'device_id': str(device_id), 'facebook_id': {'$exists': False}})
+    if not user:
+        return JsonResponse({'status': 1, 'desc': 'facebook_id or device_id error!'})
+
+    is_auto = request.POST.get('is_auto')
+    now_time = int(time.time())
+    if is_auto is True:
+        user.update_instance({'$addToSet': {"auto_order.open": now_time}, '$set': {'is_auto': True}})
+    else:
+        user.update_instance({'$addToSet': {"auto_order.close": now_time}, '$set': {'is_auto': False}})
+
+    return JsonResponse({'status': 0})

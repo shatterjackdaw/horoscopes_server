@@ -65,6 +65,29 @@ class Matches:
     CAREER = 'career'
 
 
+user_schema = Schema({
+    "facebook_id": {'type': basestring},
+    "device_id": {'type': basestring},
+    'avatar_url': {'type': basestring},
+    'birth': {'type': basestring},
+    'auto_order': {'type': dict, 'default': {'open': [], 'close': []}},
+    'is_auto': {'type': bool, 'default': False}
+})
+
+User = create_model(user_schema, db_horoscopes.user, "User")
+User.collection.ensure_index('facebook_id', unique=True)
+User.collection.ensure_index('device_id')
+
+
+@User.instance_method
+def to_client_obj(self):
+    data = dict(self)
+    del data['_id']
+    del data['auto_order']
+
+    return data
+
+
 horoscope_day_log_schema = Schema({
     "date": {'type': datetime.datetime},
     'horoscope_type': {'type': basestring, 'default': HoroscopeType.ARIES},
