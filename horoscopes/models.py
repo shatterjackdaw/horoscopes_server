@@ -112,7 +112,22 @@ HoroscopeDayLog.collection.ensure_index([("date", -1), ('horoscope_type', -1)])
 horoscope_week_log_schema = Schema({
     "date": {'type': basestring},       # %Y-%U 2018-00, 具体规则参见datetime.strftime()
     'horoscope_type': {'type': basestring, 'default': HoroscopeType.ARIES},
-    'content': {'type': dict, 'default': {}},
+    TableDb.GENERAL: {'type': dict, 'default': {}},
+    'rating': {
+        'type': Schema({
+            Rating.OVERALL: {'type': int},
+            Rating.LOVE: {'type': int},
+            Rating.CAREER: {'type': int},
+            Rating.MONEY: {'type': int},
+            Rating.HEALTH: {'type': int},
+        }), 'default': {
+            Rating.OVERALL: 0,
+            Rating.LOVE: 0,
+            Rating.CAREER: 0,
+            Rating.MONEY: 0,
+            Rating.HEALTH: 0
+        }
+    },
 })
 
 HoroscopeWeekLog = create_model(horoscope_week_log_schema, db_horoscopes.horoscope_week_log, "HoroscopeWeekLog")
@@ -122,7 +137,36 @@ HoroscopeWeekLog.collection.ensure_index([("date", -1), ('horoscope_type', -1)])
 horoscope_month_log_schema = Schema({
     "date": {'type': basestring},       # %Y-%m 2018-01
     'horoscope_type': {'type': basestring, 'default': HoroscopeType.ARIES},
-    'content': {'type': dict, 'default': {}},
+    'color': {'type': int},
+    'gem': {'type': int},
+    'lucky_nums': {'type': list},
+    TableDb.GENERAL: {'type': dict, 'default': {}},
+    'rating': {
+        'type': Schema({
+            Rating.OVERALL: {'type': int},
+            Rating.LOVE: {'type': int},
+            Rating.CAREER: {'type': int},
+            Rating.MONEY: {'type': int},
+            Rating.HEALTH: {'type': int},
+        }), 'default': {
+            Rating.OVERALL: 0,
+            Rating.LOVE: 0,
+            Rating.CAREER: 0,
+            Rating.MONEY: 0,
+            Rating.HEALTH: 0
+        }
+    },
+    'matches': {
+        'type': Schema({
+            Matches.FRIENDSHIP: {'type': basestring},
+            Matches.LOVE: {'type': basestring},
+            Matches.CAREER: {'type': basestring}
+        }), 'default': {
+            Matches.FRIENDSHIP: HoroscopeType.ARIES,
+            Matches.LOVE: HoroscopeType.ARIES,
+            Matches.CAREER: HoroscopeType.ARIES
+        }
+    }
 })
 
 HoroscopeMonthLog = create_model(horoscope_month_log_schema, db_horoscopes.horoscope_month_log, "HoroscopeMonthLog")
@@ -132,7 +176,14 @@ HoroscopeMonthLog.collection.ensure_index([("date", -1), ('horoscope_type', -1)]
 horoscope_year_log_schema = Schema({
     "date": {'type': basestring},       # %Y 2018
     'horoscope_type': {'type': basestring, 'default': HoroscopeType.ARIES},
-    'content': {'type': dict, 'default': {}},
+    TableDb.GENERAL: {'type': dict, 'default': {}},
+    'rating': {
+        'type': Schema({
+            Rating.OVERALL: {'type': int},
+        }), 'default': {
+            Rating.OVERALL: 0,
+        }
+    },
 })
 
 HoroscopeYearLog = create_model(horoscope_year_log_schema, db_horoscopes.horoscope_year_log, "HoroscopeYearLog")
@@ -147,8 +198,7 @@ def get_week_horoscope_log(local_id, horoscope_type, day_offset=0):
         return {}
     data = dict(week_log)
     del data['_id']
-    data['content'] = data['content'].values()[0].encode('utf-8')
-    return data
+    return get_client_data(data)
 
 
 @HoroscopeMonthLog.static_method
@@ -157,9 +207,22 @@ def get_month_horoscope_log(local_id, horoscope_type, day_offset=0):
     month_log = HoroscopeMonthLog.find_one({'date': the_day.strftime('%Y-%m'), 'horoscope_type': horoscope_type})
     if not month_log:
         return {}
-    data = dict(month_log)
+    if month_log.get('color') and month_log.get('gem') and month_log.get('lucky_nums'):
+        return month_log.to_client_obj()
+    if month_log.get('color') is None:
+        month_log['color'] = random.choice(settings.STATIC['color'].keys())
+    if month_log.get('gem') is None:
+        month_log['gem'] = random.choice(settings.STATIC['gem'].keys())
+    month_log.save()
+    return month_log.to_client_obj()
+
+
+@HoroscopeMonthLog.instance_method
+def to_client_obj(self):
+    data = dict(self)
     del data['_id']
-    data['content'] = data['content'].values()[0].encode('utf-8')
+    data = get_client_data(data)
+
     return data
 
 
@@ -171,8 +234,7 @@ def get_year_horoscope_log(local_id, horoscope_type, day_offset=0):
         return {}
     data = dict(year_log)
     del data['_id']
-    data['content'] = data['content'].values()[0].encode('utf-8')
-    return data
+    return get_client_data(data)
 
 
 @HoroscopeDayLog.static_method
@@ -231,17 +293,29 @@ def get_random_horoscopes_value():
 def to_client_obj(self):
     data = dict(self)
     del data['_id']
-    data[TableDb.GENERAL] = data[TableDb.GENERAL].values()[0].encode('utf-8')
-    data[TableDb.LOVE] = data[TableDb.LOVE].values()[0].encode('utf-8')
-    data[TableDb.MONEY] = data[TableDb.MONEY].values()[0].encode('utf-8')
-    data[TableDb.CAREER] = data[TableDb.CAREER].values()[0].encode('utf-8')
-    data[TableDb.ADVANCE] = data[TableDb.ADVANCE].values()[0].encode('utf-8')
+    data = get_client_data(data)
+    data['date'] = data['date'].strftime('%Y%m%d')
+
+    return data
+
+
+def get_client_data(data):
+    if data.get(TableDb.GENERAL):
+        data[TableDb.GENERAL] = data[TableDb.GENERAL].values()[0].encode('utf-8')
+    if data.get(TableDb.LOVE):
+        data[TableDb.LOVE] = data[TableDb.LOVE].values()[0].encode('utf-8')
+    if data.get(TableDb.MONEY):
+        data[TableDb.MONEY] = data[TableDb.MONEY].values()[0].encode('utf-8')
+    if data.get(TableDb.CAREER):
+        data[TableDb.CAREER] = data[TableDb.CAREER].values()[0].encode('utf-8')
+    if data.get(TableDb.ADVANCE):
+        data[TableDb.ADVANCE] = data[TableDb.ADVANCE].values()[0].encode('utf-8')
     if data.get(TableDb.HEALTH):
         data[TableDb.HEALTH] = data[TableDb.HEALTH].values()[0].encode('utf-8')
-
-    data['date'] = data['date'].strftime('%Y%m%d')
-    data['color'] = settings.STATIC['color'][data['color']]
-    data['gem'] = settings.STATIC['gem'][data['gem']]
+    if data.get('color'):
+        data['color'] = settings.STATIC['color'][data['color']]
+    if data.get('gem'):
+        data['gem'] = settings.STATIC['gem'][data['gem']]
 
     return data
 

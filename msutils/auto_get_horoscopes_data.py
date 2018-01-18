@@ -144,7 +144,22 @@ HoroscopeDayLog.collection.ensure_index([("date", -1), ('horoscope_type', -1)])
 horoscope_week_log_schema = Schema({
     "date": {'type': basestring},       # %Y-%U 2018-00, 具体规则参见datetime.strftime()
     'horoscope_type': {'type': basestring, 'default': HoroscopeType.ARIES},
-    'content': {'type': dict, 'default': {}},
+    TableDb.GENERAL: {'type': dict, 'default': {}},
+    'rating': {
+        'type': Schema({
+            Rating.OVERALL: {'type': int},
+            Rating.LOVE: {'type': int},
+            Rating.CAREER: {'type': int},
+            Rating.MONEY: {'type': int},
+            Rating.HEALTH: {'type': int},
+        }), 'default': {
+            Rating.OVERALL: 0,
+            Rating.LOVE: 0,
+            Rating.CAREER: 0,
+            Rating.MONEY: 0,
+            Rating.HEALTH: 0
+        }
+    },
 })
 
 HoroscopeWeekLog = create_model(horoscope_week_log_schema, db.horoscope_week_log, "HoroscopeWeekLog")
@@ -154,7 +169,36 @@ HoroscopeWeekLog.collection.ensure_index([("date", -1), ('horoscope_type', -1)])
 horoscope_month_log_schema = Schema({
     "date": {'type': basestring},       # %Y-%m 2018-01
     'horoscope_type': {'type': basestring, 'default': HoroscopeType.ARIES},
-    'content': {'type': dict, 'default': {}},
+    'color': {'type': int},
+    'gem': {'type': int},
+    'lucky_nums': {'type': list},
+    TableDb.GENERAL: {'type': dict, 'default': {}},
+    'rating': {
+        'type': Schema({
+            Rating.OVERALL: {'type': int},
+            Rating.LOVE: {'type': int},
+            Rating.CAREER: {'type': int},
+            Rating.MONEY: {'type': int},
+            Rating.HEALTH: {'type': int},
+        }), 'default': {
+            Rating.OVERALL: 0,
+            Rating.LOVE: 0,
+            Rating.CAREER: 0,
+            Rating.MONEY: 0,
+            Rating.HEALTH: 0
+        }
+    },
+    'matches': {
+        'type': Schema({
+            Matches.FRIENDSHIP: {'type': basestring},
+            Matches.LOVE: {'type': basestring},
+            Matches.CAREER: {'type': basestring}
+        }), 'default': {
+            Matches.FRIENDSHIP: HoroscopeType.ARIES,
+            Matches.LOVE: HoroscopeType.ARIES,
+            Matches.CAREER: HoroscopeType.ARIES
+        }
+    }
 })
 
 HoroscopeMonthLog = create_model(horoscope_month_log_schema, db.horoscope_month_log, "HoroscopeMonthLog")
@@ -164,7 +208,14 @@ HoroscopeMonthLog.collection.ensure_index([("date", -1), ('horoscope_type', -1)]
 horoscope_year_log_schema = Schema({
     "date": {'type': basestring},       # %Y 2018
     'horoscope_type': {'type': basestring, 'default': HoroscopeType.ARIES},
-    'content': {'type': dict, 'default': {}},
+    TableDb.GENERAL: {'type': dict, 'default': {}},
+    'rating': {
+        'type': Schema({
+            Rating.OVERALL: {'type': int},
+        }), 'default': {
+            Rating.OVERALL: 0,
+        }
+    },
 })
 
 HoroscopeYearLog = create_model(horoscope_year_log_schema, db.horoscope_year_log, "HoroscopeYearLog")
@@ -198,13 +249,14 @@ def create_theastrologer_horoscopes_data():
         if not data:
             continue
         horoscopes_data[key] = data
-    # y_data = get_theastrologer_yearly_horoscopes_data(host + '/2018-horoscope/')
-    # horoscopes_data['yearly'] = y_data
     save_horoscopes_data(horoscopes_data['daily'], TableDb.GENERAL)
     weekly_data = save_horoscopes_data(horoscopes_data['weekly'], TableDb.WEEKLY)
     save_horoscopes_noday_log(weekly_data, TableDb.WEEKLY)
     monthly_data = save_horoscopes_data(horoscopes_data['monthly'], TableDb.MONTHLY)
     save_horoscopes_noday_log(monthly_data, TableDb.MONTHLY)
+    # 年的，每年跑一次就行了。。
+    # y_data = get_theastrologer_yearly_horoscopes_data(host + '/2018-horoscope/')
+    # horoscopes_data['yearly'] = y_data
     # yearly_data = save_yearly_horoscopes_data(horoscopes_data['yearly'], TableDb.YEARLY)
     # save_horoscopes_noday_log(yearly_data, TableDb.YEARLY)
 
@@ -541,6 +593,7 @@ def save_after_tomorrow_horoscopes_day_log(horoscopes_data):
         r_data = get_random_horoscopes_value()
         new_day_log['rating'] = r_data['rating']
         new_day_log['matches'] = r_data['matches']
+        new_day_log['lucky_nums'] = random.sample(range(10), 3)
         new_day_log.save()
 
     last_time = math.floor(time.time()) + 24*3600*2
@@ -561,12 +614,19 @@ def save_horoscopes_noday_log(horoscopes_data, time_k):
     # b_date = (now_date + datetime.timedelta(days=-1)).strftime('%Y-%U')
     print 'save today noday date_time>>' + str(date_time)
     for h_type in HoroscopeType.ALL:
-        new_month_log = time_conf[1].find_one({'date': date_time, 'horoscope_type': h_type})
-        if new_month_log:
+        new_noday_log = time_conf[1].find_one({'date': date_time, 'horoscope_type': h_type})
+        if new_noday_log:
             continue
-        new_month_log = time_conf[1]({'date': date_time, 'horoscope_type': h_type,
-                                      'content': horoscopes_data[h_type]})
-        new_month_log.save()
+        new_noday_log = time_conf[1]({'date': date_time, 'horoscope_type': h_type,
+                                      TableDb.GENERAL: horoscopes_data[h_type]})
+        r_data = get_random_horoscopes_value()
+        new_noday_log['rating'] = r_data['rating']
+        if time_k == TableDb.YEARLY:
+            new_noday_log['rating'] = {Rating.OVERALL: r_data['rating'][Rating.OVERALL]}
+        elif time_k == TableDb.MONTHLY:
+            new_noday_log['lucky_nums'] = random.sample(range(10), 3)
+            new_noday_log['matches'] = r_data['matches']
+        new_noday_log.save()
 
 
 def save_horoscopes_data(new_horoscopes_data, t_class):
@@ -581,10 +641,10 @@ def save_horoscopes_data(new_horoscopes_data, t_class):
     for data in new_horoscopes_data:
         old_data = db_table.find_one({'content': data['content']})
         if old_data:
-            print 'content repeat >> t_class:' + str(t_class) + ', horoscope>>' + str(data.get('key', ''))
+            print 'normal content repeat >> t_class:' + str(t_class) + ', horoscope>>' + str(data.get('key', ''))
             data_id = old_data['_id']
         else:
-            print 'no repeat>>>>>>>'
+            print 'normal no repeat>>>>>>>'
             data_id = db_table.save({'content': data['content'], 'horoscope': data['key'],
                                      'add_time': math.floor(time.time())})
         print data
