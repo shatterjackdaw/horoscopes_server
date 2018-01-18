@@ -295,7 +295,7 @@ def get_theastrologer_monthly_horoscopes_data(href):
                     horoscope_t = cont['id']
                 elif cont.name == 'p':
                     if new_text:
-                        new_text += '\n'
+                        new_text += '\n\n'
                     for p_cont in cont.contents:
                         new_text += p_cont.string
         horoscopes_data.append({'key': horoscope_t.lower(), 'content': new_text.strip()})
@@ -328,7 +328,7 @@ def get_theastrologer_yearly_horoscopes_data(href):
                     class_t = class_t if class_t != 'Overview' else 'general'
                 elif cont.name == 'p':
                     if new_text:
-                        new_text += '\n'
+                        new_text += '\n\n'
                     for p_cont in cont.contents:
                         new_text += p_cont.string
                 print 'new_text>>>>'
