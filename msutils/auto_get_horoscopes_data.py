@@ -103,6 +103,9 @@ db = get_mongo_conf()[MONGO_CONFIG['database']]
 horoscope_day_log_schema = Schema({
     "date": {'type': datetime.datetime},
     'horoscope_type': {'type': basestring, 'default': HoroscopeType.ARIES},
+    'color': {'type': int},
+    'gem': {'type': int},
+    'lucky_nums': {'type': list},
     TableDb.GENERAL: {'type': dict, 'default': {}},
     TableDb.LOVE: {'type': dict, 'default': {}},
     TableDb.MONEY: {'type': dict, 'default': {}},
