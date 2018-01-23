@@ -1,0 +1,11 @@
+<uwsgi>
+    <plugins>python</plugins>
+    <socket>127.0.0.1:3535</socket>
+    <chdir>/home/mafia/workspace/horoscopes_server</chdir>
+    <pythonpath>/home/mafia/workspace/horoscopes_server</pythonpath>
+
+    <module>horoscopes_server.wsgi</module>
+    <workers>2</workers>
+    <daemonize>/home/mafia/workspace/horoscopes_server/logs/uwsgi.log</daemonize>
+    <memory-report/>
+</uwsgi>
