@@ -8,6 +8,8 @@ import traceback
 from bs4 import BeautifulSoup, Tag
 from pymongo import MongoClient
 from mongothon import Schema, create_model
+from email.mime.text import MIMEText
+import smtplib
 
 
 class HoroscopeType:
@@ -233,6 +235,7 @@ def auto_get_horoscopes_data():
     create_findyourfate_horoscopes_data()
     create_theastrologer_horoscopes_data()
     print datetime.datetime.now()
+    send_mail(['xingchen@mobile-mafia.com'], datetime.datetime.now().strftime('%m月%d日%Y年，星座数据正常'), '蛮正常的')
 
 
 # ----------theastrologer----------
@@ -744,6 +747,28 @@ def get_random_horoscopes_value():
             }
     }
     return data
+
+
+def send_mail(to_list, sub, content):
+    mail_host = "smtp.exmail.qq.com"  # 设置服务器
+    mail_user = "sys_op@mobile-mafia.com"  # 用户名
+    mail_pass = "Youputao2012"  # 口令
+    mail_postfix = "mobile-mafia.com"  # 发件箱的后缀
+
+    msg = MIMEText(content, _subtype='plain', _charset='utf-8')
+    msg['Subject'] = sub
+    msg['From'] = mail_user
+    msg['To'] = ";".join(to_list)
+    try:
+        server = smtplib.SMTP()
+        server.connect(mail_host)
+        server.login(mail_user,mail_pass)
+        server.sendmail(mail_user, to_list, msg.as_string())
+        server.close()
+        return True
+    except Exception, e:
+        print str(e)
+        return False
 
 
 if __name__ == '__main__':

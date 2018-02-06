@@ -3,6 +3,7 @@ import random
 import datetime
 from django.conf import settings
 from mongothon import Schema, create_model
+from msutils.mail_utils import send_mail
 
 
 db_horoscopes = settings.HOROSCOPES_DB
@@ -218,6 +219,7 @@ def get_week_horoscope_log(local_id, horoscope_type, day_offset=0):
     the_day = get_today_datetime(local_id, day_offset)
     week_log = HoroscopeWeekLog.find_one({'date': the_day.strftime('%Y-%U'), 'horoscope_type': horoscope_type})
     if not week_log:
+        send_error_mail('week')
         return {}
     data = dict(week_log)
     del data['_id']
@@ -229,6 +231,7 @@ def get_month_horoscope_log(local_id, horoscope_type, day_offset=0):
     the_day = get_today_datetime(local_id, day_offset)
     month_log = HoroscopeMonthLog.find_one({'date': the_day.strftime('%Y-%m'), 'horoscope_type': horoscope_type})
     if not month_log:
+        send_error_mail('month')
         return {}
     if month_log.get('color') and month_log.get('gem') and month_log.get('lucky_nums'):
         return month_log.to_client_obj()
@@ -254,6 +257,7 @@ def get_year_horoscope_log(local_id, horoscope_type, day_offset=0):
     the_day = get_today_datetime(local_id, day_offset)
     year_log = HoroscopeYearLog.find_one({'date': the_day.strftime('%Y'), 'horoscope_type': horoscope_type})
     if not year_log:
+        send_error_mail('year')
         return {}
     data = dict(year_log)
     del data['_id']
@@ -266,6 +270,7 @@ def get_day_horoscope_log(local_id, horoscope_type, day_offset=0):
     day_log = HoroscopeDayLog.find_one({'date': the_day, 'horoscope_type': horoscope_type})
     if not day_log:
         # day_log = HoroscopeDayLog.create_new_horoscope_day_log()
+        send_error_mail('day')
         return {}
     if day_log.get('color') and day_log.get('gem') and day_log.get('lucky_nums'):
         return day_log.to_client_obj()
@@ -356,3 +361,10 @@ def get_today_datetime(local_id, day_offset):
     now = datetime.datetime.now() + datetime.timedelta(hours=local_id-8) + datetime.timedelta(days=day_offset)
     the_day = datetime.datetime(now.year, now.month, now.day)
     return the_day
+
+
+def send_error_mail(e_type):
+    try:
+        send_mail(['xingchen@mobile-mafia.com'], datetime.datetime.now().strftime('异常星座数据,%m月%d日%Y年'), e_type)
+    except:
+        pass
