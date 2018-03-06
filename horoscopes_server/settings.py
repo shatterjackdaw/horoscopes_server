@@ -186,3 +186,18 @@ def get_mongo_conf(conf=None):
 MONGO = get_mongo_conf(MONGO_CONFIG)
 
 HOROSCOPES_DB = MONGO['horoscopes_db']
+
+
+def reload_static_compatibility():
+    new_compatibility = {}
+    for _id, data in STATIC['Compatibility'].iteritems():
+        new_compatibility.setdefault(data['zodiac_man'], {})
+        new_data = {}
+        for key, value in data.iteritems():
+            new_data[key] = value
+
+        new_compatibility[data['zodiac_man']][data['zodiac_woman']] = new_data
+
+    STATIC['Compatibility'] = new_compatibility
+
+reload_static_compatibility()

@@ -368,3 +368,12 @@ def send_error_mail(e_type):
         send_mail(['xingchen@mobile-mafia.com'], datetime.datetime.now().strftime('异常星座数据,%m月%d日%Y年'), e_type)
     except:
         pass
+
+
+def get_compatibility_data_by_zodiac(z_man, z_woman):
+    compatibility = settings.STATIC['Compatibility']
+    if not compatibility.get(z_man) or not compatibility[z_man].get(z_woman):
+        return {}
+    return compatibility[z_man][z_woman]
+
+

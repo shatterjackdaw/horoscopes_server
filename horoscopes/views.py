@@ -3,7 +3,8 @@ import time
 import json
 from django.shortcuts import render
 from django.http import JsonResponse
-from models import HoroscopeDayLog, HoroscopeType, HoroscopeWeekLog, HoroscopeMonthLog, HoroscopeYearLog, User
+from models import HoroscopeDayLog, HoroscopeType, HoroscopeWeekLog, HoroscopeMonthLog, HoroscopeYearLog, User, \
+    get_compatibility_data_by_zodiac
 
 
 def index(request):
@@ -100,3 +101,18 @@ def auto_order(request):
         user.update_instance({'$addToSet': {"auto_order.close": now_time}, '$set': {'is_auto': False}})
 
     return JsonResponse({'status': 0})
+
+
+def get_compatibility_data(request):
+    zodiac_man = request.GET.get('zodiac_man')
+    zodiac_woman = request.GET.get('zodiac_woman')
+    if not zodiac_man or not zodiac_woman or zodiac_man not in HoroscopeType.ALL or zodiac_woman not in HoroscopeType.ALL:
+        return JsonResponse({'status': 1, 'desc': 'horoscope error!'})
+
+    data = get_compatibility_data_by_zodiac(zodiac_man, zodiac_woman)
+    ret = {
+        'status': 0,
+        'compatibility': data
+    }
+
+    return JsonResponse(ret)

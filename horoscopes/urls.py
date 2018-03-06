@@ -8,5 +8,6 @@ urlpatterns = [
     url(r'^info_regist$', views.info_regist),
     url(r'^login$', views.info_login),
     url(r'^auto_order$', views.auto_order),
+    url(r'^get_compatibility_data', views.get_compatibility_data),
     # url(r'^activity_review_by_rid/', views.activity_review_by_rid),
 ]
